@@ -1,14 +1,12 @@
-use std::str::FromStr;
 use chrono::{DateTime, Utc};
+use std::str::FromStr;
 
 use elasticsearch::{
     http::{
         headers::{HeaderName, HeaderValue},
         response::Response,
         transport::Transport,
-    },
-    indices::IndicesCreateParts,
-    Elasticsearch, Error, IndexParts,
+    }, indices::IndicesCreateParts, BulkOperation, BulkParts, Elasticsearch, Error, IndexParts
 };
 
 #[derive(Debug, Clone)]
@@ -51,7 +49,7 @@ impl ElasticClient {
     pub fn get_index_name_with_pattern(
         &self,
         index_name: &str,
-        pattern: ElasticIndexRotationPattern,
+        pattern: &ElasticIndexRotationPattern,
     ) -> String {
         let date_index = get_time_index(Utc::now(), pattern);
         format!("{}-{}", index_name, date_index)
@@ -60,7 +58,7 @@ impl ElasticClient {
     pub async fn create_index_mapping(
         &self,
         index_name: &str,
-        pattern: ElasticIndexRotationPattern,
+        pattern: &ElasticIndexRotationPattern,
         mapping: serde_json::Value,
     ) -> Result<Response, Error> {
         let index_name = self.get_index_name_with_pattern(index_name, pattern);
@@ -81,7 +79,7 @@ impl ElasticClient {
     pub async fn write_entity(
         &self,
         index_name: &str,
-        pattern: ElasticIndexRotationPattern,
+        pattern: &ElasticIndexRotationPattern,
         entity: serde_json::Value,
     ) -> Result<Response, Error> {
         let index_name = self.get_index_name_with_pattern(index_name, pattern);
@@ -97,9 +95,35 @@ impl ElasticClient {
             .send()
             .await
     }
+
+    pub async fn write_entities(
+        &self,
+        index_name: &str,
+        pattern: &ElasticIndexRotationPattern,
+        entities: Vec<serde_json::Value>,
+    ) -> Result<Response, Error> {
+        let index_name = self.get_index_name_with_pattern(index_name, pattern);
+
+        let ops = entities
+            .into_iter()
+            .map(|x| BulkOperation::index(x).into())
+            .collect::<Vec<BulkOperation<serde_json::Value>>>();
+
+
+        self.elastic_client
+            .bulk(BulkParts::Index(&index_name))
+            .body(ops)
+            .header(
+                HeaderName::from_str("esecure").unwrap(),
+                HeaderValue::from_str(self.esecure.as_ref().unwrap_or(&String::from("default")))
+                    .unwrap(),
+            )
+            .send()
+            .await
+    }
 }
 
-fn get_time_index(current_date: DateTime<Utc>, pattern: ElasticIndexRotationPattern) -> i32 {
+fn get_time_index(current_date: DateTime<Utc>, pattern: &ElasticIndexRotationPattern) -> i32 {
     let fmt = match pattern {
         ElasticIndexRotationPattern::Day => "%Y%m%d",
         ElasticIndexRotationPattern::Mouth => "%Y%m",
