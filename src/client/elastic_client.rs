@@ -11,6 +11,7 @@ use elasticsearch::{
     Elasticsearch, Error, IndexParts,
 };
 
+#[derive(Debug, Clone)]
 pub enum ElasticClientAuth {
     SingleNode {
         url: String,
@@ -18,6 +19,7 @@ pub enum ElasticClientAuth {
     },
 }
 
+#[derive(Debug, Clone)]
 pub enum ElasticIndexRotationPattern {
     Day,
     Mouth,
