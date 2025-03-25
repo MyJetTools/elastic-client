@@ -6,7 +6,9 @@ use elasticsearch::{
         headers::{HeaderName, HeaderValue},
         response::Response,
         transport::Transport,
-    }, indices::IndicesCreateParts, BulkOperation, BulkParts, Elasticsearch, Error, IndexParts
+    },
+    indices::IndicesCreateParts,
+    BulkOperation, BulkParts, Elasticsearch, Error, IndexParts,
 };
 
 #[derive(Debug, Clone)]
@@ -14,6 +16,11 @@ pub enum ElasticClientAuth {
     SingleNode {
         url: String,
         esecure: Option<String>,
+    },
+    ElasticClient {
+        cloud_id: String,
+        username: String,
+        password: String,
     },
 }
 
@@ -41,6 +48,20 @@ impl ElasticClient {
                 Ok(Self {
                     elastic_client: eclient,
                     esecure,
+                })
+            }
+            ElasticClientAuth::ElasticClient {
+                cloud_id,
+                username,
+                password,
+            } => {
+                let credentials = Credentials::Basic(username, password);
+                let transport = Transport::cloud(&cloud_id, credentials)?;
+                let client = Elasticsearch::new(transport);
+
+                Ok(Self {
+                    elastic_client: client,
+                    esecure: None,
                 })
             }
         }
@@ -108,7 +129,6 @@ impl ElasticClient {
             .into_iter()
             .map(|x| BulkOperation::index(x).into())
             .collect::<Vec<BulkOperation<serde_json::Value>>>();
-
 
         self.elastic_client
             .bulk(BulkParts::Index(&index_name))
