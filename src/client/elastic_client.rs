@@ -2,13 +2,11 @@ use chrono::{DateTime, Utc};
 use std::str::FromStr;
 
 use elasticsearch::{
-    http::{
+    auth::Credentials, http::{
         headers::{HeaderName, HeaderValue},
         response::Response,
         transport::Transport,
-    },
-    indices::IndicesCreateParts,
-    BulkOperation, BulkParts, Elasticsearch, Error, IndexParts,
+    }, indices::IndicesCreateParts, BulkOperation, BulkParts, Elasticsearch, Error, IndexParts
 };
 
 #[derive(Debug, Clone)]
